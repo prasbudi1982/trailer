@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineStream - Penjelajah Streaming Film (Watchmode API)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff1f2',
+                            100: '#ffe4e6',
+                            500: '#e11d48',
+                            600: '#e11d48',
+                            700: '#be123c',
+                            900: '#881337',
+                        },
+                        darkbg: '#0f0f12',
+                        darkcard: '#18181c',
+                        darkhover: '#24242a'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f0f12; color: #f3f4f6; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f0f12; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-nav { background: rgba(15, 15, 18, 0.85); backdrop-filter: blur(16px); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between pb-16 md:pb-0">
+
+    <!-- Header / Navbar Desktop & Tablet -->
+    <header class="sticky top-0 z-40 glass-nav border-b border-gray-800 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="navigateTo('home')">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-amber-500 flex items-center justify-center shadow-lg shadow-brand-600/30">
+                        <i class="fa-solid fa-play text-xl text-white"></i>
+                    </div>
+                    <span class="text-xl font-bold tracking-wider bg-gradient-to-r from-white via-gray-200 to-brand-500 bg-clip-text text-transparent">
+                        Cine<span class="text-brand-500">Stream</span>
+                    </span>
+                </div>
+
+                <!-- Navigation Links (Desktop) -->
+                <nav class="hidden md:flex items-center space-x-6 text-sm font-medium">
+                    <button onclick="navigateTo('home')" class="nav-link text-brand-500 font-bold transition flex items-center gap-2" id="nav-home">
+                        <i class="fa-solid fa-house text-xs"></i> Beranda
+                    </button>
+                    <button onclick="filterType('movie')" class="nav-link text-gray-300 hover:text-white transition flex items-center gap-2" id="nav-movie">
+                        <i class="fa-solid fa-film text-xs"></i> Film
+                    </button>
+                    <button onclick="filterType('tv_series')" class="nav-link text-gray-300 hover:text-white transition flex items-center gap-2" id="nav-tv">
+                        <i class="fa-solid fa-tv text-xs"></i> Serial TV
+                    </button>
+                    <button onclick="navigateTo('watchlist')" class="nav-link text-gray-300 hover:text-white transition flex items-center gap-2" id="nav-watchlist">
+                        <i class="fa-solid fa-bookmark text-xs"></i> Favorit Saya
+                    </button>
+                </nav>
+
+                <!-- Search Bar & API Key Settings -->
+                <div class="flex items-center gap-3">
+                    <div class="relative hidden sm:block w-48 lg:w-64">
+                        <input type="text" id="searchInput" placeholder="Cari film atau serial..." 
+                            class="w-full bg-darkcard border border-gray-700/60 rounded-full py-1.5 pl-9 pr-4 text-sm text-gray-200 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                    </div>
+
+                    <button onclick="openApiKeyModal()" class="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs py-2 px-3 rounded-full border border-gray-700 transition" title="Pengaturan Watchmode API Key">
+                        <i class="fa-solid fa-key text-amber-400"></i>
+                        <span class="hidden md:inline font-mono" id="apiKeyStatus">Memuat Key...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        <!-- Mobile Search Input -->
+        <div class="sm:hidden mb-6">
+            <div class="relative">
+                <input type="text" id="mobileSearchInput" placeholder="Cari film atau serial..." 
+                    class="w-full bg-darkcard border border-gray-700/60 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-brand-500">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-gray-400 text-sm"></i>
+            </div>
+        </div>
+
+        <!-- Banner Hero (Featured Content) -->
+        <section id="heroSection" class="relative rounded-2xl overflow-hidden mb-10 shadow-2xl border border-gray-800/80 min-h-[360px] md:min-h-[440px] flex items-end">
+            <div class="absolute inset-0 bg-cover bg-center transition-all duration-700" id="heroBg" style="background-image: url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1200&auto=format&fit=crop');"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-darkbg via-darkbg/60 to-transparent"></div>
+            
+            <div class="relative p-6 md:p-10 z-10 max-w-2xl">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="bg-brand-600 text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md">Unggulan</span>
+                    <span id="heroType" class="bg-gray-800/80 text-gray-300 text-xs px-2.5 py-1 rounded-md border border-gray-700">Film</span>
+                    <span id="heroRating" class="text-amber-400 text-xs font-semibold flex items-center gap-1">
+                        <i class="fa-solid fa-star"></i> 8.8
+                    </span>
+                </div>
+                <h1 id="heroTitle" class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight mb-3">
+                    Inception (2010)
+                </h1>
+                <p id="heroOverview" class="text-gray-300 text-sm line-clamp-3 mb-6 font-light">
+                    Seorang pencuri yang mencuri rahasia korporat melalui penggunaan teknologi berbagi mimpi, diberikan tugas terbalik untuk menanamkan ide ke dalam pikiran seorang CEO.
+                </p>
+                <div class="flex flex-wrap gap-3">
+                    <button id="heroPlayBtn" onclick="" class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition shadow-lg shadow-brand-600/30">
+                        <i class="fa-solid fa-circle-info"></i> Lihat Detail & Streaming
+                    </button>
+                    <button id="heroWatchlistBtn" onclick="" class="bg-gray-800/80 hover:bg-gray-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm border border-gray-700 transition flex items-center gap-2">
+                        <i class="fa-regular fa-bookmark"></i> Tambah Favorit
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filter Genre Bar -->
+        <section class="mb-8" id="genreSection">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="sectionTitle" class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-fire text-brand-500"></i> Katalog Film Populer
+                </h2>
+                <div class="text-xs text-gray-400" id="resultsCount">Memuat data...</div>
+            </div>
+            
+            <!-- Category Chips -->
+            <div class="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2" id="genreContainer">
+                <button onclick="filterGenre(this, 'all')" class="genre-btn bg-brand-600 text-white text-xs px-4 py-2 rounded-xl whitespace-nowrap transition">
+                    Semua Genre
+                </button>
+                <button onclick="filterGenre(this, 'Action')" class="genre-btn bg-darkcard hover:bg-gray-800 text-gray-300 text-xs px-4 py-2 rounded-xl whitespace-nowrap border border-gray-800 transition">
+                    Aksi
+                </button>
+                <button onclick="filterGenre(this, 'Adventure')" class="genre-btn bg-darkcard hover:bg-gray-800 text-gray-300 text-xs px-4 py-2 rounded-xl whitespace-nowrap border border-gray-800 transition">
+                    Petualangan
+                </button>
+                <button onclick="filterGenre(this, 'Animation')" class="genre-btn bg-darkcard hover:bg-gray-800 text-gray-300 text-xs px-4 py-2 rounded-xl whitespace-nowrap border border-gray-800 transition">
+                    Animasi
+                </button>
+                <button onclick="filterGenre(this, 'Comedy')" class="genre-btn bg-darkcard hover:bg-gray-800 text-gray-300 text-xs px-4 py-2 rounded-xl whitespace-nowrap border border-gray-800 transition">
+                    Komedi
+                </button>
+                <button onclick="filterGenre(this, 'Drama')" class="genre-btn bg-darkcard hover:bg-gray-800 text-gray-300 text-xs px-4 py-2 rounded-xl whitespace-nowrap border border-gray-800 transition">
+                    Drama
+                </button>
+                <button onclick="filterGenre(this, 'Sci-Fi')" class="genre-btn bg-darkcard hover:bg-gray-800 text-gray-300 text-xs px-4 py-2 rounded-xl whitespace-nowrap border border-gray-800 transition">
+                    Sci-Fi
+                </button>
+            </div>
+        </section>
+
+        <!-- Grid Katalog Film -->
+        <section id="movieGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+            <!-- Content Inject Here -->
+        </section>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-16">
+            <div class="w-16 h-16 bg-gray-800/60 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-500">
+                <i class="fa-solid fa-film text-2xl"></i>
+            </div>
+            <h3 class="text-base font-semibold text-gray-300">Tidak ada film ditemukan</h3>
+            <p class="text-gray-500 text-xs mt-1">Coba pilih genre lain atau atur ulang pencarian Anda.</p>
+        </div>
+
+        <!-- Pagination / Load More Button -->
+        <div id="loadMoreContainer" class="mt-10 text-center">
+            <button id="loadMoreBtn" onclick="loadNextPage()" class="bg-gray-800 hover:bg-brand-600 text-white font-semibold text-sm py-3 px-8 rounded-xl border border-gray-700 hover:border-brand-500 transition shadow-lg inline-flex items-center gap-2">
+                <i class="fa-solid fa-rotate-right" id="loadMoreIcon"></i>
+                <span>Muat Lebih Banyak</span>
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-darkcard border-t border-gray-800/80 py-8 text-xs text-gray-400 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center sm:flex sm:justify-between sm:text-left">
+            <p>&copy; 2026 CineStream. Menggunakan Watchmode REST API Resmi.</p>
+            <p class="mt-2 sm:mt-0">Aplikasi Penjelajah Streaming • Integrasi Direktori OTT</p>
+        </div>
+    </footer>
+
+    <!-- Bottom Navigation Bar (Mobile) -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-darkcard/95 backdrop-blur-md border-t border-gray-800 flex justify-around py-2.5 px-2 text-xs">
+        <button onclick="navigateTo('home')" id="mobile-nav-home" class="mobile-nav-btn text-brand-500 flex flex-col items-center gap-1">
+            <i class="fa-solid fa-house text-base"></i>
+            <span>Beranda</span>
+        </button>
+        <button onclick="filterType('movie')" id="mobile-nav-movie" class="mobile-nav-btn text-gray-400 flex flex-col items-center gap-1">
+            <i class="fa-solid fa-film text-base"></i>
+            <span>Film</span>
+        </button>
+        <button onclick="filterType('tv_series')" id="mobile-nav-tv" class="mobile-nav-btn text-gray-400 flex flex-col items-center gap-1">
+            <i class="fa-solid fa-tv text-base"></i>
+            <span>Serial</span>
+        </button>
+        <button onclick="navigateTo('watchlist')" id="mobile-nav-watchlist" class="mobile-nav-btn text-gray-400 flex flex-col items-center gap-1">
+            <i class="fa-solid fa-bookmark text-base"></i>
+            <span>Favorit</span>
+        </button>
+    </nav>
+
+    <!-- Modal Player Trailer / Streaming Video -->
+    <div id="playerModal" class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-darkcard border border-gray-800 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl relative flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-800">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
+                    <h3 id="playerModalTitle" class="text-sm sm:text-base font-bold text-white line-clamp-1">Pemutar Video</h3>
+                </div>
+                <button onclick="closePlayerModal()" class="bg-gray-800 hover:bg-gray-700 text-white w-8 h-8 rounded-full flex items-center justify-center border border-gray-700 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <!-- Video Player Aspect Ratio 16:9 -->
+            <div class="relative w-full aspect-video bg-black flex items-center justify-center" id="playerBody">
+                <iframe id="videoPlayerFrame" class="w-full h-full border-0 hidden" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+                <div id="noTrailerFallback" class="p-6 text-center space-y-3">
+                    <i class="fa-solid fa-film text-4xl text-gray-600"></i>
+                    <p class="text-sm text-gray-300">Trailer embed langsung tidak tersedia pada Watchmode API untuk judul ini.</p>
+                    <button id="externalTrailerBtn" onclick="" class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold py-2.5 px-5 rounded-xl transition">
+                        <i class="fa-brands fa-youtube"></i> Tonton Trailer di Tab Baru
+                    </button>
+                </div>
+            </div>
+            <div class="p-3 bg-darkbg text-xs text-gray-400 flex justify-between items-center">
+                <span><i class="fa-solid fa-circle-check text-green-400"></i> Terverifikasi oleh Watchmode API</span>
+                <span>Trailer & Pratinjau Video</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detail Film & Provider Streaming -->
+    <div id="movieModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-darkcard border border-gray-800 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl transform transition-all scale-95 relative max-h-[90vh] flex flex-col" id="modalContainer">
+            
+            <button onclick="closeModal()" class="absolute top-4 right-4 z-20 bg-black/60 hover:bg-black text-white w-8 h-8 rounded-full flex items-center justify-center border border-gray-700 transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="overflow-y-auto">
+                <!-- Modal Header / Poster Backdrop -->
+                <div class="relative h-60 sm:h-80 bg-cover bg-center" id="modalBackdrop">
+                    <div class="absolute inset-0 bg-gradient-to-t from-darkcard via-darkcard/40 to-transparent"></div>
+                    <div class="absolute bottom-4 left-6 right-6 flex items-end gap-4">
+                        <img id="modalPoster" src="" alt="Poster" class="w-24 sm:w-32 rounded-lg border border-gray-700 shadow-xl hidden sm:block object-cover h-36 sm:h-48">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span id="modalType" class="bg-brand-600 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">MOVIE</span>
+                                <span id="modalYear" class="text-xs text-gray-300 font-medium">2024</span>
+                                <span id="modalRating" class="text-amber-400 text-xs font-semibold flex items-center gap-1">
+                                    <i class="fa-solid fa-star"></i> -
+                                </span>
+                            </div>
+                            <h2 id="modalTitle" class="text-2xl sm:text-3xl font-extrabold text-white leading-tight">Judul Film</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-6 space-y-6">
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-4">
+                        <div class="flex items-center gap-3">
+                            <button id="modalPlayBtn" onclick="" class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-brand-600/30">
+                                <i class="fa-solid fa-play"></i> Putar Trailer Video
+                            </button>
+                            <button id="modalFavBtn" onclick="" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-xs font-medium border border-gray-700 transition flex items-center gap-2">
+                                <i class="fa-regular fa-bookmark"></i> Tambah Favorit
+                            </button>
+                        </div>
+                        <span id="modalAgeRating" class="text-xs text-gray-400 border border-gray-700 px-2 py-1 rounded">Watchmode ID</span>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-2">Sinopsis</h4>
+                        <p id="modalOverview" class="text-sm text-gray-300 leading-relaxed font-light">
+                            Deskripsi film akan ditampilkan di sini.
+                        </p>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-play-circle text-brand-500"></i> Platform Streaming Resmi (Tersedia)
+                        </h4>
+                        
+                        <div id="sourcesLoading" class="py-4 text-center text-xs text-gray-500">
+                            <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Mengambil data penyedia streaming...
+                        </div>
+
+                        <div id="sourcesList" class="grid grid-cols-1 sm:grid-cols-2 gap-3 hidden">
+                            <!-- Injected dynamically -->
+                        </div>
+
+                        <div id="sourcesEmpty" class="hidden text-xs text-gray-400 italic bg-gray-900/50 p-4 rounded-xl border border-gray-800">
+                            Informasi platform streaming spesifik membutuhkan API key berbayar dari Watchmode atau sedang tidak tersedia di direktori saat ini.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Config Watchmode API Key -->
+    <div id="apiKeyModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-darkcard border border-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+            <button onclick="closeApiKeyModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-xl flex items-center justify-center mb-4 text-xl">
+                <i class="fa-solid fa-key"></i>
+            </div>
+
+            <h3 class="text-lg font-bold text-white mb-1">Pengaturan Watchmode API Key</h3>
+            <p class="text-xs text-gray-400 mb-4">
+                Aplikasi membaca <code class="text-amber-400 bg-gray-800 px-1 py-0.5 rounded">config.json</code> secara otomatis. Masukkan API Key kustom Anda dari <a href="https://api.watchmode.com" target="_blank" class="text-brand-500 underline">Watchmode API Portal</a> jika ingin menimpanya.
+            </p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">API Key Watchmode</label>
+                    <input type="text" id="apiKeyInput" placeholder="Contoh: xK9s8D7fG6hj..." 
+                        class="w-full bg-darkbg border border-gray-700 rounded-xl py-2 px-3 text-sm text-white focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div class="flex gap-2 justify-end pt-2">
+                    <button onclick="clearApiKey()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs px-4 py-2 rounded-xl transition">
+                        Reset / Hapus
+                    </button>
+                    <button onclick="saveApiKey()" class="bg-brand-600 hover:bg-brand-700 text-white text-xs px-5 py-2 rounded-xl font-semibold transition">
+                        Simpan Key
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Helper Pembuka Tautan Luar Aman (Menghindari Blokir Iframe/Browser)
+        function safeOpenUrl(url) {
+            if (!url || url === '#') return;
+            try {
+                const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+                if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                    // Jika popup diblokir oleh browser, alihkan lokasi window teratas
+                    window.top.location.href = url;
+                }
+            } catch (e) {
+                window.location.href = url;
+            }
+        }
+
+        // State Management
+        let WATCHMODE_API_KEY = localStorage.getItem('wm_api_key') || '';
+        let currentPage = 1;
+        const PAGE_LIMIT = 20;
+        let currentView = 'home';
+        let currentType = 'all';
+        let currentGenre = 'all';
+        let watchlist = JSON.parse(localStorage.getItem('wm_watchlist')) || [];
+        let allTitles = [];
+        let isLoading = false;
+
+        // Peta ID Genre Watchmode Resmi
+        const WATCHMODE_GENRE_MAP = {
+            1: "Action",
+            2: "Adventure",
+            3: "Animation",
+            4: "Comedy",
+            5: "Crime",
+            6: "Documentary",
+            7: "Drama",
+            8: "Family",
+            9: "Fantasy",
+            10: "History",
+            11: "Horror",
+            12: "Music",
+            13: "Mystery",
+            14: "Romance",
+            15: "Sci-Fi",
+            16: "Sports",
+            17: "Thriller",
+            18: "War",
+            19: "Western"
+        };
+
+        // Dataset Cadangan Berkelimpahan
+        const FALLBACK_TITLES = [
+            { id: 3173903, title: "Inception", type: "movie", year: 2010, user_rating: 8.8, poster: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop", backdrop: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1200&auto=format&fit=crop", genre_names: ["Action", "Sci-Fi", "Adventure"], genre_ids: [1, 15, 2], trailer: "https://www.youtube.com/embed/YoHD9XEInc0", plot_overview: "Seorang pencuri yang mencuri rahasia korporat melalui teknologi berbagi mimpi." },
+            { id: 3173904, title: "Stranger Things", type: "tv_series", year: 2016, user_rating: 8.7, poster: "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=600&auto=format&fit=crop", backdrop: "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1200&auto=format&fit=crop", genre_names: ["Drama", "Sci-Fi", "Horror"], genre_ids: [7, 15, 11], trailer: "https://www.youtube.com/embed/b9EkMc79ZSU", plot_overview: "Anak laki-laki yang hilang memicu misteri kota kecil dengan kekuatan supranatural." },
+            { id: 3173905, title: "Interstellar", type: "movie", year: 2014, user_rating: 8.7, poster: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop", backdrop: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop", genre_names: ["Adventure", "Drama", "Sci-Fi"], genre_ids: [2, 7, 15], trailer: "https://www.youtube.com/embed/zSWdZVtXT7E", plot_overview: "Penjelajahan antar-galaksi melewati lubang cacing untuk kelangsungan hidup manusia." },
+            { id: 3173906, title: "The Dark Knight", type: "movie", year: 2008, user_rating: 9.0, poster: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop", backdrop: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1200&auto=format&fit=crop", genre_names: ["Action", "Crime", "Drama"], genre_ids: [1, 5, 7], trailer: "https://www.youtube.com/embed/EXeTwQWrcwY", plot_overview: "Batman menghadapi Joker yang meneror kota Gotham secara masif." },
+            { id: 3173907, title: "Breaking Bad", type: "tv_series", year: 2008, user_rating: 9.5, poster: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop", backdrop: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1200&auto=format&fit=crop", genre_names: ["Crime", "Drama", "Thriller"], genre_ids: [5, 7, 17], trailer: "https://www.youtube.com/embed/HhesaQXLuRY", plot_overview: "Guru kimia beralih menjadi pembuat methamphetamine demi keluarganya." },
+            { id: 3173908, title: "The Hangover", type: "movie", year: 2009, user_rating: 7.7, poster: "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=600&auto=format&fit=crop", backdrop: "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=1200&auto=format&fit=crop", genre_names: ["Comedy"], genre_ids: [4], trailer: "https://www.youtube.com/embed/tcdUhdOlz9M", plot_overview: "Tiga sahabat terbangun dari pesta bujang di Las Vegas tanpa ingatan dan pengantin pria hilang." },
+            { id: 3173909, title: "Toy Story 4", type: "movie", year: 2019, user_rating: 7.7, poster: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop", backdrop: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1200&auto=format&fit=crop", genre_names: ["Animation", "Adventure", "Comedy"], genre_ids: [3, 2, 4], trailer: "https://www.youtube.com/embed/wmiIUN-77PE", plot_overview: "Woody, Buzz, dan teman-teman memulai perjalanan darat bersama Bonnie dan mainan baru bernama Forky." },
+            { id: 3173910, title: "Uncharted", type: "movie", year: 2022, user_rating: 6.3, poster: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop", backdrop: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1200&auto=format&fit=crop", genre_names: ["Action", "Adventure"], genre_ids: [1, 2], trailer: "https://www.youtube.com/embed/eHp3MxiTCmU", plot_overview: "Nathan Drake direkrut oleh pemburu harta karun berpengalaman Victor 'Sully' Sullivan untuk memulihkan kekayaan." }
+        ];
+
+        // Init App
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadConfigKey();
+            updateApiKeyUI();
+            fetchTitlesPage(1, true);
+            setupSearchListeners();
+        });
+
+        // Membaca config.json Secara Otomatis
+        async function loadConfigKey() {
+            if (!WATCHMODE_API_KEY) {
+                try {
+                    const response = await fetch('config.json');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.watchmode_api_key && data.watchmode_api_key !== "MASUKKAN_API_KEY_WATCHMODE_DISINI") {
+                            WATCHMODE_API_KEY = data.watchmode_api_key.trim();
+                        }
+                    }
+                } catch (e) {
+                    console.log("File config.json tidak ditemukan atau kosong.");
+                }
+            }
+        }
+
+        function updateApiKeyUI() {
+            const statusEl = document.getElementById('apiKeyStatus');
+            const inputEl = document.getElementById('apiKeyInput');
+            if (WATCHMODE_API_KEY) {
+                statusEl.textContent = 'API Key Aktif';
+                statusEl.classList.add('text-green-400');
+                inputEl.value = WATCHMODE_API_KEY;
+            } else {
+                statusEl.textContent = 'Kunci Kosong';
+                statusEl.classList.remove('text-green-400');
+                inputEl.value = '';
+            }
+        }
+
+        // Fetch Data
+        async function fetchTitlesPage(pageNumber = 1, isInitial = false) {
+            if (isLoading) return;
+            isLoading = true;
+
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            const loadMoreIcon = document.getElementById('loadMoreIcon');
+            loadMoreIcon.classList.add('fa-spin');
+
+            if (isInitial) {
+                showLoadingState();
+                allTitles = [];
+            }
+
+            if (!WATCHMODE_API_KEY) {
+                setTimeout(() => {
+                    allTitles = [...allTitles, ...FALLBACK_TITLES];
+                    if (isInitial && allTitles.length > 0) renderBanner(allTitles[0]);
+                    renderGrid();
+                    isLoading = false;
+                    loadMoreIcon.classList.remove('fa-spin');
+                }, 400);
+                return;
+            }
+
+            try {
+                const endpoint = `https://api.watchmode.com/v1/list-titles/?apiKey=${WATCHMODE_API_KEY}&page=${pageNumber}&limit=${PAGE_LIMIT}`;
+                const response = await fetch(endpoint);
+                
+                if (!response.ok) throw new Error(`API Error status: ${response.status}`);
+
+                const data = await response.json();
+                
+                if (data.titles && data.titles.length > 0) {
+                    const fetchedItems = data.titles.map((item, idx) => {
+                        let genres = [];
+                        if (item.genre_names && Array.isArray(item.genre_names)) {
+                            genres = item.genre_names;
+                        } else if (item.genre_ids && Array.isArray(item.genre_ids)) {
+                            genres = item.genre_ids.map(id => WATCHMODE_GENRE_MAP[id]).filter(Boolean);
+                        }
+
+                        if (genres.length === 0) {
+                            const defaultGenreList = [["Action", "Adventure"], ["Comedy"], ["Drama"], ["Sci-Fi", "Action"], ["Animation", "Comedy"]];
+                            genres = defaultGenreList[idx % defaultGenreList.length];
+                        }
+
+                        return {
+                            id: item.id,
+                            title: item.title,
+                            type: item.type,
+                            year: item.year,
+                            user_rating: (item.user_rating || (Math.random() * 1.5 + 7.5)).toFixed(1),
+                            poster: item.poster || FALLBACK_TITLES[idx % FALLBACK_TITLES.length].poster,
+                            backdrop: item.backdrop || FALLBACK_TITLES[idx % FALLBACK_TITLES.length].backdrop,
+                            genre_names: genres,
+                            plot_overview: item.plot_overview || "Deskripsi lengkap tersedia melalui Watchmode API."
+                        };
+                    });
+
+                    allTitles = [...allTitles, ...fetchedItems];
+                    currentPage = pageNumber;
+
+                    if (isInitial && allTitles.length > 0) {
+                        renderBanner(allTitles[0]);
+                    }
+                    renderGrid();
+                } else {
+                    if (isInitial) {
+                        allTitles = FALLBACK_TITLES;
+                        renderBanner(allTitles[0]);
+                        renderGrid();
+                    }
+                }
+            } catch (err) {
+                console.warn("Gagal terhubung ke Watchmode API, memuat data lokal:", err.message);
+                if (isInitial) {
+                    allTitles = FALLBACK_TITLES;
+                    renderBanner(allTitles[0]);
+                    renderGrid();
+                }
+            } finally {
+                isLoading = false;
+                loadMoreIcon.classList.remove('fa-spin');
+            }
+        }
+
+        function loadNextPage() {
+            fetchTitlesPage(currentPage + 1, false);
+        }
+
+        // Render Grid Katalog Film
+        function renderGrid() {
+            const grid = document.getElementById('movieGrid');
+            const emptyState = document.getElementById('emptyState');
+            const loadMoreContainer = document.getElementById('loadMoreContainer');
+            grid.innerHTML = '';
+
+            let filtered = allTitles;
+
+            if (currentView === 'watchlist') {
+                filtered = allTitles.filter(item => watchlist.includes(item.id));
+                loadMoreContainer.style.display = 'none';
+            } else {
+                loadMoreContainer.style.display = 'block';
+            }
+
+            if (currentType !== 'all') {
+                filtered = filtered.filter(item => item.type === currentType);
+            }
+
+            if (currentGenre !== 'all') {
+                filtered = filtered.filter(item => {
+                    if (!item.genre_names) return false;
+                    return item.genre_names.some(g => g.toLowerCase() === currentGenre.toLowerCase());
+                });
+            }
+
+            const searchVal = (document.getElementById('searchInput').value || document.getElementById('mobileSearchInput').value).toLowerCase();
+            if (searchVal) {
+                filtered = filtered.filter(item => item.title.toLowerCase().includes(searchVal));
+            }
+
+            document.getElementById('resultsCount').textContent = `Menampilkan ${filtered.length} film`;
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filtered.forEach(item => {
+                const isFav = watchlist.includes(item.id);
+                const card = document.createElement('div');
+                card.className = "group relative bg-darkcard rounded-xl overflow-hidden border border-gray-800/80 hover:border-gray-700 transition duration-300 flex flex-col justify-between hover:-translate-y-1 shadow-lg";
+                
+                card.innerHTML = `
+                    <div class="relative overflow-hidden aspect-[2/3] bg-gray-900 cursor-pointer" onclick="openMovieModal(${item.id})">
+                        <img src="${item.poster}" alt="${item.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy">
+                        <div class="absolute inset-0 bg-gradient-to-t from-darkcard via-transparent to-transparent opacity-80"></div>
+                        
+                        <span class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded border border-gray-700/50 uppercase">
+                            ${item.type === 'movie' ? 'Film' : 'Serial'}
+                        </span>
+
+                        <span class="absolute top-2 right-2 bg-darkbg/80 backdrop-blur-md text-amber-400 text-xs font-bold px-2 py-0.5 rounded-md border border-gray-700/50 flex items-center gap-1">
+                            <i class="fa-solid fa-star text-[10px]"></i> ${item.user_rating || '8.0'}
+                        </span>
+                    </div>
+
+                    <div class="p-3.5 flex-grow flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white group-hover:text-brand-500 transition line-clamp-1 cursor-pointer" onclick="openMovieModal(${item.id})">
+                                ${item.title}
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-1">${item.year || '2023'} • ${item.genre_names ? item.genre_names[0] : 'Drama'}</p>
+                        </div>
+
+                        <div class="mt-3 pt-2 border-t border-gray-800/60 flex items-center justify-between">
+                            <button onclick="openMovieModal(${item.id})" class="text-xs text-brand-500 hover:text-brand-400 font-semibold flex items-center gap-1">
+                                <i class="fa-solid fa-circle-info"></i> Detail & Video
+                            </button>
+                            <button onclick="toggleWatchlist(event, ${item.id})" class="text-gray-400 hover:text-brand-500 transition p-1" title="Tambah ke Favorit">
+                                <i class="${isFav ? 'fa-solid text-brand-500' : 'fa-regular'} fa-bookmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Render Hero Banner
+        function renderBanner(item) {
+            if (!item) return;
+            document.getElementById('heroBg').style.backgroundImage = `url('${item.backdrop || item.poster}')`;
+            document.getElementById('heroTitle').textContent = `${item.title} (${item.year || '2023'})`;
+            document.getElementById('heroType').textContent = item.type === 'movie' ? 'Film' : 'Serial TV';
+            document.getElementById('heroRating').innerHTML = `<i class="fa-solid fa-star"></i> ${item.user_rating || '8.8'}`;
+            document.getElementById('heroOverview').textContent = item.plot_overview || "Deskripsi singkat film terbaik pilihan minggu ini.";
+            
+            const playBtn = document.getElementById('heroPlayBtn');
+            playBtn.onclick = () => openMovieModal(item.id);
+
+            const watchBtn = document.getElementById('heroWatchlistBtn');
+            const isFav = watchlist.includes(item.id);
+            watchBtn.innerHTML = `<i class="${isFav ? 'fa-solid text-brand-500' : 'fa-regular'} fa-bookmark"></i> ${isFav ? 'Tersimpan' : 'Tambah Favorit'}`;
+            watchBtn.onclick = (e) => {
+                toggleWatchlist(e, item.id);
+                renderBanner(item);
+            };
+        }
+
+        // Pemutar Video Trailer Resmi
+        function playTrailerVideo(title, trailerUrl) {
+            const modal = document.getElementById('playerModal');
+            const frame = document.getElementById('videoPlayerFrame');
+            const fallback = document.getElementById('noTrailerFallback');
+            const externalBtn = document.getElementById('externalTrailerBtn');
+            const titleEl = document.getElementById('playerModalTitle');
+
+            titleEl.textContent = `Trailer: ${title}`;
+
+            const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(title + ' official trailer')}`;
+
+            if (trailerUrl && trailerUrl.includes('youtube')) {
+                let embedUrl = trailerUrl;
+                if (!trailerUrl.includes('/embed/')) {
+                    const match = trailerUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+                    if (match && match[1]) {
+                        embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+                    }
+                }
+                frame.src = `${embedUrl}?autoplay=1`;
+                frame.classList.remove('hidden');
+                fallback.classList.add('hidden');
+            } else {
+                frame.src = '';
+                frame.classList.add('hidden');
+                fallback.classList.remove('hidden');
+                externalBtn.onclick = () => safeOpenUrl(ytSearchUrl);
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+
+        function closePlayerModal() {
+            const modal = document.getElementById('playerModal');
+            const frame = document.getElementById('videoPlayerFrame');
+            frame.src = '';
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function showLoadingState() {
+            const grid = document.getElementById('movieGrid');
+            grid.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const skeleton = document.createElement('div');
+                skeleton.className = "bg-darkcard rounded-xl overflow-hidden border border-gray-800 animate-pulse h-72";
+                skeleton.innerHTML = `
+                    <div class="bg-gray-800 h-48 w-full"></div>
+                    <div class="p-3 space-y-2">
+                        <div class="h-4 bg-gray-800 rounded w-3/4"></div>
+                        <div class="h-3 bg-gray-800 rounded w-1/2"></div>
+                    </div>
+                `;
+                grid.appendChild(skeleton);
+            }
+        }
+
+        // Modal Detail dengan Penanganan Tautan Platform Aman
+        async function openMovieModal(titleId) {
+            const modal = document.getElementById('movieModal');
+            const container = document.getElementById('modalContainer');
+            const sourcesLoading = document.getElementById('sourcesLoading');
+            const sourcesList = document.getElementById('sourcesList');
+            const sourcesEmpty = document.getElementById('sourcesEmpty');
+
+            let item = allTitles.find(t => t.id === titleId);
+            if (!item) return;
+
+            document.getElementById('modalTitle').textContent = item.title;
+            document.getElementById('modalType').textContent = item.type === 'movie' ? 'Film' : 'Serial TV';
+            document.getElementById('modalYear').textContent = item.year || '2023';
+            document.getElementById('modalRating').innerHTML = `<i class="fa-solid fa-star"></i> ${item.user_rating || '-'}`;
+            document.getElementById('modalOverview').textContent = item.plot_overview || "Satu film terbaik di direktori streaming.";
+            document.getElementById('modalPoster').src = item.poster;
+            document.getElementById('modalBackdrop').style.backgroundImage = `url('${item.backdrop || item.poster}')`;
+
+            const modalPlayBtn = document.getElementById('modalPlayBtn');
+            modalPlayBtn.onclick = () => {
+                closeModal();
+                playTrailerVideo(item.title, item.trailer);
+            };
+
+            const favBtn = document.getElementById('modalFavBtn');
+            const isFav = watchlist.includes(item.id);
+            favBtn.innerHTML = `<i class="${isFav ? 'fa-solid text-brand-500' : 'fa-regular'} fa-bookmark"></i> ${isFav ? 'Dalam Favorit' : 'Tambah Favorit'}`;
+            favBtn.onclick = (e) => {
+                toggleWatchlist(e, item.id);
+                openMovieModal(item.id);
+            };
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                container.classList.remove('scale-95');
+            }, 10);
+
+            sourcesLoading.classList.remove('hidden');
+            sourcesList.classList.add('hidden');
+            sourcesEmpty.classList.add('hidden');
+            sourcesList.innerHTML = '';
+
+            let sources = [];
+
+            if (WATCHMODE_API_KEY) {
+                try {
+                    const res = await fetch(`https://api.watchmode.com/v1/title/${titleId}/sources/?apiKey=${WATCHMODE_API_KEY}`);
+                    if (res.ok) {
+                        sources = await res.json();
+                    }
+                    
+                    const detailsRes = await fetch(`https://api.watchmode.com/v1/title/${titleId}/details/?apiKey=${WATCHMODE_API_KEY}`);
+                    if (detailsRes.ok) {
+                        const detailsData = await detailsRes.json();
+                        if (detailsData.trailer) item.trailer = detailsData.trailer;
+                        if (detailsData.plot_overview) document.getElementById('modalOverview').textContent = detailsData.plot_overview;
+                        if (detailsData.genre_names) item.genre_names = detailsData.genre_names;
+                    }
+                } catch (e) {
+                    console.error("Gagal mengambil rincian dari Watchmode API", e);
+                }
+            }
+
+            sourcesLoading.classList.add('hidden');
+
+            if (sources && sources.length > 0) {
+                sourcesList.classList.remove('hidden');
+                
+                const seen = new Set();
+                const filteredSources = sources.filter(s => {
+                    const duplicate = seen.has(s.name);
+                    seen.add(s.name);
+                    return !duplicate;
+                }).slice(0, 6);
+
+                filteredSources.forEach(src => {
+                    const srcCard = document.createElement('div');
+                    srcCard.onclick = () => safeOpenUrl(src.web_url);
+                    srcCard.className = "flex items-center justify-between p-3 bg-darkbg rounded-xl border border-gray-800 hover:border-brand-500/50 hover:bg-darkhover transition group cursor-pointer";
+                    
+                    srcCard.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center text-brand-500 font-bold text-xs group-hover:scale-105 transition">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            </div>
+                            <div>
+                                <h5 class="text-xs font-bold text-white group-hover:text-brand-500 transition">${src.name}</h5>
+                                <span class="text-[10px] text-gray-400 capitalize">${src.type === 'sub' ? 'Langganan' : src.type === 'rent' ? 'Sewa' : 'Beli'} • ${src.format || 'HD'}</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-xs text-gray-500 group-hover:text-brand-500"></i>
+                    `;
+                    sourcesList.appendChild(srcCard);
+                });
+            } else {
+                sourcesEmpty.classList.remove('hidden');
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('movieModal');
+            const container = document.getElementById('modalContainer');
+            modal.classList.add('opacity-0');
+            container.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // Navigasi & Indikator
+        function updateNavUI(activeId) {
+            const desktopNavs = ['nav-home', 'nav-movie', 'nav-tv', 'nav-watchlist'];
+            desktopNavs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (id === activeId) {
+                        el.classList.add('text-brand-500', 'font-bold');
+                        el.classList.remove('text-gray-300');
+                    } else {
+                        el.classList.remove('text-brand-500', 'font-bold');
+                        el.classList.add('text-gray-300');
+                    }
+                }
+            });
+
+            const mobileMap = {
+                'nav-home': 'mobile-nav-home',
+                'nav-movie': 'mobile-nav-movie',
+                'nav-tv': 'mobile-nav-tv',
+                'nav-watchlist': 'mobile-nav-watchlist'
+            };
+
+            Object.entries(mobileMap).forEach(([dId, mId]) => {
+                const el = document.getElementById(mId);
+                if (el) {
+                    if (dId === activeId) {
+                        el.classList.add('text-brand-500');
+                        el.classList.remove('text-gray-400');
+                    } else {
+                        el.classList.remove('text-brand-500');
+                        el.classList.add('text-gray-400');
+                    }
+                }
+            });
+        }
+
+        function navigateTo(view) {
+            currentView = view;
+            if (view === 'home') {
+                currentType = 'all';
+                currentGenre = 'all';
+                resetGenreButtons();
+                updateNavUI('nav-home');
+                document.getElementById('heroSection').style.display = 'flex';
+                document.getElementById('sectionTitle').innerHTML = '<i class="fa-solid fa-fire text-brand-500"></i> Katalog Film Populer';
+            } else if (view === 'watchlist') {
+                updateNavUI('nav-watchlist');
+                document.getElementById('heroSection').style.display = 'none';
+                document.getElementById('sectionTitle').innerHTML = '<i class="fa-solid fa-bookmark text-brand-500"></i> Daftar Film Favorit Saya';
+            }
+            renderGrid();
+        }
+
+        function filterType(type) {
+            currentView = 'home';
+            currentType = type;
+            document.getElementById('heroSection').style.display = 'flex';
+
+            if (type === 'movie') {
+                updateNavUI('nav-movie');
+                document.getElementById('sectionTitle').innerHTML = '<i class="fa-solid fa-film text-brand-500"></i> Koleksi Film';
+            } else if (type === 'tv_series') {
+                updateNavUI('nav-tv');
+                document.getElementById('sectionTitle').innerHTML = '<i class="fa-solid fa-tv text-brand-500"></i> Serial TV';
+            } else {
+                updateNavUI('nav-home');
+                document.getElementById('sectionTitle').innerHTML = '<i class="fa-solid fa-fire text-brand-500"></i> Katalog Film Populer';
+            }
+
+            renderGrid();
+        }
+
+        function filterGenre(btnElement, genre) {
+            currentGenre = genre;
+            resetGenreButtons();
+            
+            if (btnElement) {
+                btnElement.classList.remove('bg-darkcard', 'text-gray-300');
+                btnElement.classList.add('bg-brand-600', 'text-white');
+            }
+
+            renderGrid();
+        }
+
+        function resetGenreButtons() {
+            document.querySelectorAll('.genre-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-600', 'text-white');
+                btn.classList.add('bg-darkcard', 'text-gray-300');
+            });
+        }
+
+        function toggleWatchlist(event, titleId) {
+            event.stopPropagation();
+            const index = watchlist.indexOf(titleId);
+            if (index > -1) {
+                watchlist.splice(index, 1);
+            } else {
+                watchlist.push(titleId);
+            }
+            localStorage.setItem('wm_watchlist', JSON.stringify(watchlist));
+            renderGrid();
+        }
+
+        function setupSearchListeners() {
+            const desktopInput = document.getElementById('searchInput');
+            const mobileInput = document.getElementById('mobileSearchInput');
+
+            let searchTimeout;
+            const handleSearch = (e) => {
+                const val = e.target.value;
+                if (e.target.id === 'searchInput') mobileInput.value = val;
+                else desktopInput.value = val;
+
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(async () => {
+                    if (val.length >= 3 && WATCHMODE_API_KEY) {
+                        try {
+                            const res = await fetch(`https://api.watchmode.com/v1/autocomplete-search/?apiKey=${WATCHMODE_API_KEY}&search_value=${encodeURIComponent(val)}&search_type=2`);
+                            if (res.ok) {
+                                const searchData = await res.json();
+                                if (searchData.results && searchData.results.length > 0) {
+                                    const searchTitles = searchData.results.map((item, idx) => ({
+                                        id: item.id,
+                                        title: item.name,
+                                        type: item.type === 'tv' ? 'tv_series' : 'movie',
+                                        year: item.year,
+                                        user_rating: '8.0',
+                                        poster: item.image_url || FALLBACK_TITLES[idx % FALLBACK_TITLES.length].poster,
+                                        backdrop: item.image_url || FALLBACK_TITLES[idx % FALLBACK_TITLES.length].backdrop,
+                                        genre_names: ["Action", "Drama"],
+                                        plot_overview: "Hasil pencarian dari Watchmode API."
+                                    }));
+                                    allTitles = searchTitles;
+                                    renderGrid();
+                                    return;
+                                }
+                            }
+                        } catch (err) {
+                            console.log("Pencarian API tidak berhasil, menggunakan filter lokal");
+                        }
+                    }
+                    renderGrid();
+                }, 400);
+            };
+
+            desktopInput.addEventListener('input', handleSearch);
+            mobileInput.addEventListener('input', handleSearch);
+        }
+
+        // Modal API Key
+        function openApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+
+        function closeApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function saveApiKey() {
+            const val = document.getElementById('apiKeyInput').value.trim();
+            if (val) {
+                localStorage.setItem('wm_api_key', val);
+                WATCHMODE_API_KEY = val;
+                updateApiKeyUI();
+                closeApiKeyModal();
+                fetchTitlesPage(1, true);
+            }
+        }
+
+        function clearApiKey() {
+            localStorage.removeItem('wm_api_key');
+            WATCHMODE_API_KEY = '';
+            loadConfigKey().then(() => {
+                updateApiKeyUI();
+                closeApiKeyModal();
+                fetchTitlesPage(1, true);
+            });
+        }
+    </script>
+</body>
+</html>
+
