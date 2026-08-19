@@ -85,13 +85,17 @@
 
                 <!-- Search Bar & API Key Settings -->
                 <div class="flex items-center gap-3">
-                    <div class="relative hidden sm:block w-48 lg:w-64">
+                    <div class="relative hidden sm:flex items-center w-56 lg:w-72">
                         <input type="text" id="searchInput" placeholder="Cari film atau serial..." 
-                            class="w-full bg-darkcard border border-gray-700/60 rounded-full py-1.5 pl-9 pr-4 text-sm text-gray-200 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                            class="w-full bg-darkcard border border-gray-700/60 rounded-full py-1.5 pl-9 pr-14 text-sm text-gray-200 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 text-gray-400 text-xs"></i>
+                        <button onclick="triggerSearch('searchInput')" class="absolute right-1 bg-brand-600 hover:bg-brand-700 text-white text-xs px-3 py-1 rounded-full font-medium transition flex items-center gap-1">
+                            <span>Cari</span>
+                        </button>
                     </div>
 
-                    <button onclick="openApiKeyModal()" class="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs py-2 px-3 rounded-full border border-gray-700 transition" title="Pengaturan Watchmode API Key">
+                    <!-- Tombol Pengaturan API Key (Disembunyikan) -->
+                    <button onclick="openApiKeyModal()" class="hidden items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs py-2 px-3 rounded-full border border-gray-700 transition" title="Pengaturan Watchmode API Key">
                         <i class="fa-solid fa-key text-amber-400"></i>
                         <span class="hidden md:inline font-mono" id="apiKeyStatus">Memuat Key...</span>
                     </button>
@@ -105,10 +109,13 @@
         
         <!-- Mobile Search Input -->
         <div class="sm:hidden mb-6">
-            <div class="relative">
+            <div class="relative flex items-center">
                 <input type="text" id="mobileSearchInput" placeholder="Cari film atau serial..." 
-                    class="w-full bg-darkcard border border-gray-700/60 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-brand-500">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-gray-400 text-sm"></i>
+                    class="w-full bg-darkcard border border-gray-700/60 rounded-xl py-2.5 pl-10 pr-16 text-sm text-gray-200 focus:outline-none focus:border-brand-500">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 text-gray-400 text-sm"></i>
+                <button onclick="triggerSearch('mobileSearchInput')" class="absolute right-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition">
+                    Cari
+                </button>
             </div>
         </div>
 
@@ -471,7 +478,7 @@
 
             const loadMoreBtn = document.getElementById('loadMoreBtn');
             const loadMoreIcon = document.getElementById('loadMoreIcon');
-            loadMoreIcon.classList.add('fa-spin');
+            if (loadMoreIcon) loadMoreIcon.classList.add('fa-spin');
 
             if (isInitial) {
                 showLoadingState();
@@ -484,13 +491,17 @@
                     if (isInitial && allTitles.length > 0) renderBanner(allTitles[0]);
                     renderGrid();
                     isLoading = false;
-                    loadMoreIcon.classList.remove('fa-spin');
+                    if (loadMoreIcon) loadMoreIcon.classList.remove('fa-spin');
                 }, 400);
                 return;
             }
 
             try {
-                const endpoint = `https://api.watchmode.com/v1/list-titles/?apiKey=${WATCHMODE_API_KEY}&page=${pageNumber}&limit=${PAGE_LIMIT}`;
+                let typeFilter = '';
+                if (currentType === 'movie') typeFilter = '&types=movie';
+                else if (currentType === 'tv_series') typeFilter = '&types=tv_series';
+
+                const endpoint = `https://api.watchmode.com/v1/list-titles/?apiKey=${WATCHMODE_API_KEY}&page=${pageNumber}&limit=${PAGE_LIMIT}${typeFilter}`;
                 const response = await fetch(endpoint);
                 
                 if (!response.ok) throw new Error(`API Error status: ${response.status}`);
@@ -514,7 +525,7 @@
                         return {
                             id: item.id,
                             title: item.title,
-                            type: item.type,
+                            type: item.type || (currentType !== 'all' ? currentType : 'movie'),
                             year: item.year,
                             user_rating: (item.user_rating || (Math.random() * 1.5 + 7.5)).toFixed(1),
                             poster: item.poster || FALLBACK_TITLES[idx % FALLBACK_TITLES.length].poster,
@@ -547,7 +558,7 @@
                 }
             } finally {
                 isLoading = false;
-                loadMoreIcon.classList.remove('fa-spin');
+                if (loadMoreIcon) loadMoreIcon.classList.remove('fa-spin');
             }
         }
 
@@ -582,7 +593,7 @@
                 });
             }
 
-            const searchVal = (document.getElementById('searchInput').value || document.getElementById('mobileSearchInput').value).toLowerCase();
+            const searchVal = (document.getElementById('searchInput').value || document.getElementById('mobileSearchInput').value).toLowerCase().trim();
             if (searchVal) {
                 filtered = filtered.filter(item => item.title.toLowerCase().includes(searchVal));
             }
@@ -865,7 +876,17 @@
             });
         }
 
+        // Helper untuk Mengosongkan Nilai Input Pencarian
+        function clearSearchInputs() {
+            const desktopInput = document.getElementById('searchInput');
+            const mobileInput = document.getElementById('mobileSearchInput');
+            if (desktopInput) desktopInput.value = '';
+            if (mobileInput) mobileInput.value = '';
+        }
+
+        // Navigasi dengan Auto Reload Konten & Pembersihan Pencarian Otomatis
         function navigateTo(view) {
+            clearSearchInputs(); // Menghapus pencarian saat menekan Home/Navigasi
             currentView = view;
             if (view === 'home') {
                 currentType = 'all';
@@ -874,17 +895,21 @@
                 updateNavUI('nav-home');
                 document.getElementById('heroSection').style.display = 'flex';
                 document.getElementById('sectionTitle').innerHTML = '<i class="fa-solid fa-fire text-brand-500"></i> Katalog Film Populer';
+                fetchTitlesPage(1, true); // Auto reload konten beranda
             } else if (view === 'watchlist') {
                 updateNavUI('nav-watchlist');
                 document.getElementById('heroSection').style.display = 'none';
                 document.getElementById('sectionTitle').innerHTML = '<i class="fa-solid fa-bookmark text-brand-500"></i> Daftar Film Favorit Saya';
+                renderGrid();
             }
-            renderGrid();
         }
 
         function filterType(type) {
+            clearSearchInputs(); // Menghapus pencarian saat berpindah kategori
             currentView = 'home';
             currentType = type;
+            currentGenre = 'all';
+            resetGenreButtons();
             document.getElementById('heroSection').style.display = 'flex';
 
             if (type === 'movie') {
@@ -898,7 +923,7 @@
                 document.getElementById('sectionTitle').innerHTML = '<i class="fa-solid fa-fire text-brand-500"></i> Katalog Film Populer';
             }
 
-            renderGrid();
+            fetchTitlesPage(1, true); // Auto reload konten sesuai kategori terpilih (Movie/TV)
         }
 
         function filterGenre(btnElement, genre) {
@@ -932,6 +957,37 @@
             renderGrid();
         }
 
+        // Penanganan Pencarian dengan Tombol Cari
+        function triggerSearch(inputId) {
+            const inputEl = document.getElementById(inputId);
+            const val = inputEl ? inputEl.value.trim() : '';
+            if (!val) return;
+
+            if (WATCHMODE_API_KEY) {
+                fetch(`https://api.watchmode.com/v1/autocomplete-search/?apiKey=${WATCHMODE_API_KEY}&search_value=${encodeURIComponent(val)}&search_type=2`)
+                    .then(res => res.ok ? res.json() : null)
+                    .then(searchData => {
+                        if (searchData && searchData.results && searchData.results.length > 0) {
+                            allTitles = searchData.results.map((item, idx) => ({
+                                id: item.id,
+                                title: item.name,
+                                type: item.type === 'tv' ? 'tv_series' : 'movie',
+                                year: item.year,
+                                user_rating: '8.0',
+                                poster: item.image_url || FALLBACK_TITLES[idx % FALLBACK_TITLES.length].poster,
+                                backdrop: item.image_url || FALLBACK_TITLES[idx % FALLBACK_TITLES.length].backdrop,
+                                genre_names: ["Action", "Drama"],
+                                plot_overview: "Hasil pencarian dari Watchmode API."
+                            }));
+                        }
+                        renderGrid();
+                    })
+                    .catch(() => renderGrid());
+            } else {
+                renderGrid();
+            }
+        }
+
         function setupSearchListeners() {
             const desktopInput = document.getElementById('searchInput');
             const mobileInput = document.getElementById('mobileSearchInput');
@@ -941,6 +997,11 @@
                 const val = e.target.value;
                 if (e.target.id === 'searchInput') mobileInput.value = val;
                 else desktopInput.value = val;
+
+                if (e.key === 'Enter') {
+                    triggerSearch(e.target.id);
+                    return;
+                }
 
                 clearTimeout(searchTimeout);
                 searchTimeout = setTimeout(async () => {
@@ -974,8 +1035,8 @@
                 }, 400);
             };
 
-            desktopInput.addEventListener('input', handleSearch);
-            mobileInput.addEventListener('input', handleSearch);
+            desktopInput.addEventListener('keyup', handleSearch);
+            mobileInput.addEventListener('keyup', handleSearch);
         }
 
         // Modal API Key
