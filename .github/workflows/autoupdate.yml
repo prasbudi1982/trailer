@@ -1,0 +1,31 @@
+name: Update Preview Meta Tags
+
+on:
+  schedule:
+    # Berjalan otomatis setiap hari pukul 00:00 UTC
+    - cron: '0 0 * * *'
+  # Memungkinkan Anda menjalankan bot secara manual dari tab Actions di GitHub
+  workflow_dispatch:
+
+jobs:
+  update-meta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Run Update Script
+        run: node update-preview.js
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff-index --quiet HEAD || git commit -m "chore: auto-update OG metadata preview from API"
+          git push
